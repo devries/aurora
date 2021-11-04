@@ -45,7 +45,10 @@ dist/$(BINARY)-linux.sh: build/shar.tar.gz shar/sh-header
 dist/$(BINARY)-windows.zip: build/windows/$(BINARY).exe
 	zip -j dist/$(BINARY)-windows.zip build/windows/$(BINARY).exe
 
-all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip build/darwinuniversal/$(BINARY) ## Make everything
+dist/$(BINARY)-mac.zip: build/darwinuniversal/$(BINARY)
+	zip -j dist/$(BINARY)-mac.zip build/darwinuniversal/$(BINARY)
+
+all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip dist/$(BINARY)-mac.zip ## Make everything
 
 clean: ## Clean everything
 	rm -rf build || true
