@@ -7,9 +7,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/pflag"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var metricsAddress = pflag.StringP("metrics", "m", ":8080", "metrics server address in format ip:port")
+var version = "DEV"
 
 type SpaceWeatherConditions struct {
 	DateStamp     string `json:"DateStamp"`
@@ -34,13 +39,14 @@ type SpaceWeatherConditions struct {
 type SpaceWeatherResponse map[string]SpaceWeatherConditions
 
 func main() {
-
+	pflag.Parse()
 	collector := newGeomagneticCollector()
 	prometheus.MustRegister(collector)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Printf("Starting to serve on port :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("Version: %s", version)
+	log.Printf("Starting to serve on %s", *metricsAddress)
+	log.Fatal(http.ListenAndServe(*metricsAddress, nil))
 }
 
 func getSpaceWeather() (SpaceWeatherResponse, error) {
