@@ -2,7 +2,7 @@ BINARY := aurora
 VERSION := $(shell ./git_versioner.py)
 SOURCE := main.go go.mod go.sum
 
-.PHONY: dist clean all build docker
+.PHONY: dist clean all build
 
 build/darwin/$(BINARY): $(SOURCE)
 	mkdir -p build/darwin
@@ -45,13 +45,8 @@ dist/$(BINARY)-linux.sh: build/shar.tar.gz shar/sh-header
 dist/$(BINARY)-windows.zip: build/windows/$(BINARY).exe
 	zip -j dist/$(BINARY)-windows.zip build/windows/$(BINARY).exe
 
-all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip build/darwinuniversal/$(BINARY) dist/$(BINARY)-docker.tar.gz ## Make everything
+all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip build/darwinuniversal/$(BINARY) ## Make everything
 
-dist/$(BINARY)-docker.tar.gz: build/linux/$(BINARY)
-	docker build -t $(BINARY):$(VERSION) .
-	docker save $(BINARY):$(VERSION) | gzip > dist/$(BINARY)-docker.tar.gz
-
-docker: dist/$(BINARY)-docker.tar.gz
 clean: ## Clean everything
 	rm -rf build || true
 	rm -rf dist || true
