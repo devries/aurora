@@ -102,7 +102,6 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 
 	swr, err := getSpaceWeather()
 	if err != nil {
-		scale = -1.0
 		log.Printf("Error getting space weather: %s", err)
 		return
 	}
