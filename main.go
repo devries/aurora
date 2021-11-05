@@ -82,34 +82,19 @@ func getSpaceWeather() (SpaceWeatherResponse, error) {
 }
 
 type geomagneticCollector struct {
-	currentMetric   *prometheus.Desc
-	predictedMetric *prometheus.Desc
-	twoDayMetric    *prometheus.Desc
-	threeDayMetric  *prometheus.Desc
+	geoMetric *prometheus.Desc
 }
 
 func newGeomagneticCollector() *geomagneticCollector {
 	return &geomagneticCollector{
-		currentMetric: prometheus.NewDesc("aurora_geomagnetic_current",
-			"Current geomagnetic storm index.",
-			nil, nil),
-		predictedMetric: prometheus.NewDesc("aurora_geomagnetic_predicted",
-			"24 hour predicted geomagnetic storm index.",
-			nil, nil),
-		twoDayMetric: prometheus.NewDesc("aurora_geomagnetic_predicted_twoday",
-			"24-48 hour predicted geomagnetic storm index.",
-			nil, nil),
-		threeDayMetric: prometheus.NewDesc("aurora_geomagnetic_predicted_threeday",
-			"48-72 hour predicted geomagnetic storm index.",
-			nil, nil),
+		geoMetric: prometheus.NewDesc("aurora_geomagnetic_storm",
+			"Geomagnetic storm index.",
+			[]string{"time"}, nil),
 	}
 }
 
 func (collector *geomagneticCollector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- collector.currentMetric
-	ch <- collector.predictedMetric
-	ch <- collector.twoDayMetric
-	ch <- collector.threeDayMetric
+	ch <- collector.geoMetric
 }
 
 func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
@@ -134,13 +119,13 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 
 		switch entry {
 		case "0":
-			ch <- prometheus.MustNewConstMetric(collector.currentMetric, prometheus.GaugeValue, scale)
+			ch <- prometheus.MustNewConstMetric(collector.geoMetric, prometheus.GaugeValue, scale, "current")
 		case "1":
-			ch <- prometheus.MustNewConstMetric(collector.predictedMetric, prometheus.GaugeValue, scale)
+			ch <- prometheus.MustNewConstMetric(collector.geoMetric, prometheus.GaugeValue, scale, "predicted")
 		case "2":
-			ch <- prometheus.MustNewConstMetric(collector.twoDayMetric, prometheus.GaugeValue, scale)
+			ch <- prometheus.MustNewConstMetric(collector.geoMetric, prometheus.GaugeValue, scale, "two_day")
 		case "3":
-			ch <- prometheus.MustNewConstMetric(collector.threeDayMetric, prometheus.GaugeValue, scale)
+			ch <- prometheus.MustNewConstMetric(collector.geoMetric, prometheus.GaugeValue, scale, "three_day")
 		}
 	}
 }
