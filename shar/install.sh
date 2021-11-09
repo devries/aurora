@@ -80,6 +80,9 @@ After=network-online.target
 
 [Service]
 ExecStart=${binpath}/aurora -m ${metrics}
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=60s
 
 [Install]
 WantedBy=multi-user.target
