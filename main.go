@@ -211,11 +211,13 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	kp, err := getKpValues()
-	if err != nil {
-		log.Printf("Error getting Kp Values: %s", err)
-		return
-	}
+	/*
+		kp, err := getKpValues()
+		if err != nil {
+			log.Printf("Error getting Kp Values: %s", err)
+			return
+		}
 
-	ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+	*/
 }
