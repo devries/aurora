@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -37,6 +38,14 @@ type SpaceWeatherConditions struct {
 }
 
 type SpaceWeatherResponse map[string]SpaceWeatherConditions
+
+type KpMeasurement struct {
+	Timestamp    time.Time
+	Kp           int32
+	KpFraction   float64
+	ARunning     int32
+	StationCount int32
+}
 
 func main() {
 	pflag.Parse()
@@ -81,8 +90,79 @@ func getSpaceWeather() (SpaceWeatherResponse, error) {
 	return swr, nil
 }
 
+func getKpValues() (*KpMeasurement, error) {
+	url := "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
+
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", "aurora-tracker")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	dec := json.NewDecoder(resp.Body)
+
+	var decoded [][]string
+
+	if err := dec.Decode(&decoded); err != nil {
+		return nil, err
+	}
+
+	measurements := len(decoded)
+	if measurements < 1 {
+		return nil, fmt.Errorf("Less than one (%d) Kp Measurements Returned", measurements)
+	}
+
+	lastValue := decoded[measurements-1]
+
+	var kp KpMeasurement
+	var tempInt int64
+
+	kp.Timestamp, err = time.Parse("2006-01-02 15:04:05.000", lastValue[0])
+	if err != nil {
+		return nil, err
+	}
+
+	tempInt, err = strconv.ParseInt(lastValue[1], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	kp.Kp = int32(tempInt)
+
+	tempInt, err = strconv.ParseInt(lastValue[3], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	kp.ARunning = int32(tempInt)
+
+	tempInt, err = strconv.ParseInt(lastValue[4], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	kp.StationCount = int32(tempInt)
+
+	kp.KpFraction, err = strconv.ParseFloat(lastValue[2], 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kp, nil
+}
+
 type geomagneticCollector struct {
 	geoMetric *prometheus.Desc
+	kpMetric  *prometheus.Desc
 }
 
 func newGeomagneticCollector() *geomagneticCollector {
@@ -90,11 +170,14 @@ func newGeomagneticCollector() *geomagneticCollector {
 		geoMetric: prometheus.NewDesc("aurora_geomagnetic_storm",
 			"Geomagnetic storm index.",
 			[]string{"time"}, nil),
+		kpMetric: prometheus.NewDesc("planetary_k_index",
+			"Planetary K index.", nil, nil),
 	}
 }
 
 func (collector *geomagneticCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.geoMetric
+	ch <- collector.kpMetric
 }
 
 func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
@@ -127,4 +210,12 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(collector.geoMetric, prometheus.GaugeValue, scale, "three_day")
 		}
 	}
+
+	kp, err := getKpValues()
+	if err != nil {
+		log.Printf("Error getting Kp Values: %s", err)
+		return
+	}
+
+	ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
 }
