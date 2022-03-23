@@ -51,7 +51,7 @@ dist/$(BINARY)-mac.zip: build/darwinuniversal/$(BINARY)
 all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip dist/$(BINARY)-mac.zip docker.stamp ## Make everything
 
 docker.stamp: Dockerfile $(SOURCE)
-	docker buildx build -t devries/$(SOURCE):$(VERSION) --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg VERSION=$(VERSION) .
+	docker buildx build -t devries/$(BINARY):$(VERSION) --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg VERSION=$(VERSION) .
 	@touch docker.stamp
 
 docker: docker.stamp ## Make the docker distro
