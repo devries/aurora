@@ -48,11 +48,18 @@ dist/$(BINARY)-windows.zip: build/windows/$(BINARY).exe
 dist/$(BINARY)-mac.zip: build/darwinuniversal/$(BINARY)
 	zip -j dist/$(BINARY)-mac.zip build/darwinuniversal/$(BINARY)
 
-all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip dist/$(BINARY)-mac.zip ## Make everything
+all: dist/$(BINARY)-linux.sh dist/$(BINARY)-windows.zip dist/$(BINARY)-mac.zip docker.stamp ## Make everything
+
+docker.stamp: Dockerfile $(SOURCE)
+	docker buildx build -t devries/$(SOURCE):$(VERSION) --push --platform linux/amd64,linux/arm64,linux/arm/v7 --build-arg VERSION=$(VERSION) .
+	@touch docker.stamp
+
+docker: docker.stamp ## Make the docker distro
 
 clean: ## Clean everything
 	rm -rf build || true
 	rm -rf dist || true
+	rm docker.stamp || true
 
 help: ## Show this help
 	@echo "These are the make commands for the pwned CLI.\n"
