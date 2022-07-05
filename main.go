@@ -169,7 +169,7 @@ func newGeomagneticCollector() *geomagneticCollector {
 	return &geomagneticCollector{
 		geoMetric: prometheus.NewDesc("aurora_geomagnetic_storm",
 			"Geomagnetic storm index.",
-			[]string{"time"}, nil),
+			[]string{"timescale"}, nil),
 		kpMetric: prometheus.NewDesc("planetary_k_index",
 			"Planetary K index.", nil, nil),
 	}
@@ -211,13 +211,11 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	/*
-		kp, err := getKpValues()
-		if err != nil {
-			log.Printf("Error getting Kp Values: %s", err)
-			return
-		}
+	kp, err := getKpValues()
+	if err != nil {
+		log.Printf("Error getting Kp Values: %s", err)
+		return
+	}
 
-		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
-	*/
+	ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
 }
