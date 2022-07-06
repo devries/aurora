@@ -168,6 +168,7 @@ func getKpValues() (*KpMeasurement, error) {
 type geomagneticCollector struct {
 	geoMetric *prometheus.Desc
 	kpMetric  *prometheus.Desc
+	kpeMetric *prometheus.Desc
 }
 
 func newGeomagneticCollector() *geomagneticCollector {
@@ -176,6 +177,8 @@ func newGeomagneticCollector() *geomagneticCollector {
 			"Geomagnetic storm index.",
 			[]string{"timescale"}, nil),
 		kpMetric: prometheus.NewDesc("planetary_k_index",
+			"Planetary K index.", nil, nil),
+		kpeMetric: prometheus.NewDesc("planetary_k_index_estimated",
 			"Estimated Planetary K index.", nil, nil),
 	}
 }
@@ -183,6 +186,7 @@ func newGeomagneticCollector() *geomagneticCollector {
 func (collector *geomagneticCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.geoMetric
 	ch <- collector.kpMetric
+	ch <- collector.kpeMetric
 }
 
 func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
@@ -216,23 +220,23 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	/*
-		kp, err := getKpValues()
-		if err != nil {
-			log.Printf("Error getting Kp Values: %s", err)
-			return
-		}
+	kp, err := getKpValues()
+	if err != nil {
+		log.Printf("Error getting Kp Values: %s", err)
+		return
+	}
 
-		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
-	*/
+	ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+
 	kpvals, err := getKpEstimates()
+
 	if err != nil {
 		log.Printf("Error getting Kp Estimates: %s", err)
 		return
 	}
 	if l := len(kpvals); l > 0 {
-		kp := kpvals[l-1]
-		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+		kpe := kpvals[l-1]
+		ch <- prometheus.NewMetricWithTimestamp(kpe.Timestamp, prometheus.MustNewConstMetric(collector.kpeMetric, prometheus.GaugeValue, kpe.KpFraction))
 	}
 }
 
