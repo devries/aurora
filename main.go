@@ -47,6 +47,11 @@ type KpMeasurement struct {
 	StationCount int32
 }
 
+type KpEstimate struct {
+	Timestamp  time.Time
+	KpFraction float64
+}
+
 func main() {
 	pflag.Parse()
 	collector := newGeomagneticCollector()
@@ -171,7 +176,7 @@ func newGeomagneticCollector() *geomagneticCollector {
 			"Geomagnetic storm index.",
 			[]string{"timescale"}, nil),
 		kpMetric: prometheus.NewDesc("planetary_k_index",
-			"Planetary K index.", nil, nil),
+			"Estimated Planetary K index.", nil, nil),
 	}
 }
 
@@ -211,11 +216,67 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	kp, err := getKpValues()
+	/*
+		kp, err := getKpValues()
+		if err != nil {
+			log.Printf("Error getting Kp Values: %s", err)
+			return
+		}
+
+		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+	*/
+	kpvals, err := getKpEstimates()
 	if err != nil {
-		log.Printf("Error getting Kp Values: %s", err)
+		log.Printf("Error getting Kp Estimates: %s", err)
 		return
 	}
+	if l := len(kpvals); l > 0 {
+		kp := kpvals[l-1]
+		ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+	}
+}
 
-	ch <- prometheus.NewMetricWithTimestamp(kp.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kp.KpFraction))
+func getKpEstimates() ([]KpEstimate, error) {
+	url := "https://services.swpc.noaa.gov/products/noaa-estimated-planetary-k-index-1-minute.json"
+
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", "aurora-tracker")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	dec := json.NewDecoder(resp.Body)
+
+	var decoded [][]interface{}
+
+	if err := dec.Decode(&decoded); err != nil {
+		return nil, err
+	}
+
+	var estimates []KpEstimate
+
+	for _, d := range decoded {
+		var kp KpEstimate
+		kp.Timestamp, err = time.Parse("2006-01-02 15:04:05", (d[0]).(string))
+		if err != nil {
+			continue
+		}
+
+		kp.KpFraction = (d[1]).(float64)
+		estimates = append(estimates, kp)
+	}
+
+	return estimates, nil
 }
