@@ -47,9 +47,22 @@ type KpMeasurement struct {
 	StationCount int32
 }
 
+type timeValue struct {
+	time.Time
+}
+
+func (p *timeValue) UnmarshalJSON(bytes []byte) error {
+	t, err := time.Parse("\"2006-01-02T15:04:05\"", string(bytes))
+	if err != nil {
+		return fmt.Errorf("Error parsing time: %w", err)
+	}
+	p.Time = t
+	return nil
+}
+
 type KpEstimate struct {
-	Timestamp  time.Time
-	KpFraction float64
+	Timestamp  timeValue `json:"time_tag"`
+	KpFraction float64   `json:"estimated_kp"`
 }
 
 func main() {
@@ -139,28 +152,32 @@ func getKpValues() (*KpMeasurement, error) {
 		return nil, err
 	}
 
-	tempInt, err = strconv.ParseInt(lastValue[1], 10, 32)
-	if err != nil {
-		return nil, err
-	}
-	kp.Kp = int32(tempInt)
+	/*
+		tempInt, err = strconv.ParseInt(lastValue[1], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		kp.Kp = int32(tempInt)
+	*/
 
-	tempInt, err = strconv.ParseInt(lastValue[3], 10, 32)
+	tempInt, err = strconv.ParseInt(lastValue[2], 10, 32)
 	if err != nil {
 		return nil, err
 	}
 	kp.ARunning = int32(tempInt)
 
-	tempInt, err = strconv.ParseInt(lastValue[4], 10, 32)
+	tempInt, err = strconv.ParseInt(lastValue[3], 10, 32)
 	if err != nil {
 		return nil, err
 	}
 	kp.StationCount = int32(tempInt)
 
-	kp.KpFraction, err = strconv.ParseFloat(lastValue[2], 64)
+	kp.KpFraction, err = strconv.ParseFloat(lastValue[1], 64)
 	if err != nil {
 		return nil, err
 	}
+
+	kp.Kp = int32(kp.KpFraction)
 
 	return &kp, nil
 }
@@ -233,12 +250,12 @@ func (collector *geomagneticCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if l := len(kpvals); l > 0 {
 		kpe := kpvals[l-1]
-		ch <- prometheus.NewMetricWithTimestamp(kpe.Timestamp, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kpe.KpFraction, "estimate"))
+		ch <- prometheus.NewMetricWithTimestamp(kpe.Timestamp.Time, prometheus.MustNewConstMetric(collector.kpMetric, prometheus.GaugeValue, kpe.KpFraction, "estimate"))
 	}
 }
 
 func getKpEstimates() ([]KpEstimate, error) {
-	url := "https://services.swpc.noaa.gov/products/noaa-estimated-planetary-k-index-1-minute.json"
+	url := "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json"
 
 	client := http.Client{
 		Timeout: 5 * time.Second,
@@ -260,23 +277,10 @@ func getKpEstimates() ([]KpEstimate, error) {
 
 	dec := json.NewDecoder(resp.Body)
 
-	var decoded [][]interface{}
-
-	if err := dec.Decode(&decoded); err != nil {
-		return nil, err
-	}
-
 	var estimates []KpEstimate
 
-	for _, d := range decoded {
-		var kp KpEstimate
-		kp.Timestamp, err = time.Parse("2006-01-02 15:04:05", (d[0]).(string))
-		if err != nil {
-			continue
-		}
-
-		kp.KpFraction = (d[1]).(float64)
-		estimates = append(estimates, kp)
+	if err := dec.Decode(&estimates); err != nil {
+		return nil, err
 	}
 
 	return estimates, nil
