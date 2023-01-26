@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.18 as build
+FROM --platform=$BUILDPLATFORM golang:1.19 as build
 WORKDIR /src
 COPY go.mod go.sum .
 RUN go mod download
